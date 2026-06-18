@@ -27,7 +27,9 @@ Two doctrine facts drive the whole design:
 
 Decision authority mirrors the in-theatre commander: the **agent recommends** a
 level from threat signals; the **human sets** it. Auto-assessment never silently
-forces a posture.
+forces a posture. (In real doctrine, posture escalates on the CBRN **alert
+level** — 경계경보 → 경보발령 → 오염지역 작전; here the analogue is the threat
+signals in `signals.json`, with the operator giving the order.)
 
 ## The gear stack
 
@@ -45,6 +47,33 @@ cumulative.
 
 The **mask (level 3)** is the inflection point: it is where a human enters the
 loop. Below 3 the agent runs on static gates; at 3+ a person breathes for it.
+
+## Doctrinal note (military reference)
+
+This tool's 0–4 dial is faithful to real MOPP on the two load-bearing facts:
+posture is **cumulative**, and gear is donned in a fixed order —
+보호의(overgarment) → 덧신(overboots) → 방독면(mask) → 보호장갑(gloves). Both
+match Korean military doctrine and US/NATO sources.
+
+Real doctrine brackets the 0–4 range with states this tool deliberately folds
+out, noted here so the metaphor stays honest:
+
+- **준비단계 / MOPP Ready** (before 0): gear staged and accountable, only the
+  mask carried. Korean doctrine specifies issue within ~1 hour; US sources cite
+  2–6 hours of availability. Our analogue is *MOPP 0 with the tooling installed
+  but no gate active* — protection is reachable, not yet worn.
+- **α (알파) 단계** (a reactive state, not a higher graded level): a sudden CBRN
+  attack while in a shelter/building. It is an out-of-band jump to maximum
+  containment, not a step on the graded ladder. Our analogue is an **emergency
+  lockdown** — reactively invoking MOPP 4 controls (freeze edits, worktree,
+  human-only) in response to an incident, rather than reaching them by graded
+  assessment. (Not yet a separate command; reach it with `mopp set 4`.)
+
+These omissions do not change the 0–4 → guardrail mapping; they document where
+the working dial sits within the fuller military framework.
+
+Sources: 나무위키 "임무형 보호태세", 리브레위키, 밀리돔; Wikipedia "MOPP
+(protective gear)".
 
 ## Levels
 
