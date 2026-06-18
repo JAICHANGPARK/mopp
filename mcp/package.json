@@ -1,0 +1,14 @@
+{
+  "name": "mopp-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server exposing MOPP posture tools to any MCP-capable host (Claude Code, Codex, ...).",
+  "bin": { "mopp-mcp": "server.js" },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}

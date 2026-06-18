@@ -1,0 +1,7 @@
+{
+  "name": "mopp",
+  "version": "0.1.0",
+  "description": "Mission-Oriented Protective Posture — scale AI guardrails (tests, review, approval, isolation, audit) to the assessed blast-radius and security threat of the work. Levels 0-4, cumulative, with deliberate de-escalation.",
+  "author": { "name": "mopp" },
+  "keywords": ["safety", "guardrails", "security", "posture", "permissions"]
+}

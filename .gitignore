@@ -1,0 +1,9 @@
+# MOPP runtime posture state (per-project, not source)
+.mopp/
+
+# gstack workspace metadata
+.gstack/
+
+# node
+node_modules/
+npm-debug.log*

@@ -1,0 +1,37 @@
+# MOPP config snippet for Codex — merge into ~/.codex/config.toml
+# (or a project config). Two pieces: per-level profiles, and the MCP server.
+
+# --- MOPP level profiles ------------------------------------------------------
+# Run Codex with the profile matching the current posture, e.g.:
+#   codex --profile mopp3
+# Each profile maps the MOPP level to Codex's native sandbox + approval levers.
+
+[profiles.mopp0]
+sandbox_mode = "workspace-write"
+approval_policy = "never"
+
+[profiles.mopp1]
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+
+[profiles.mopp2]
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+
+[profiles.mopp3]
+sandbox_mode = "workspace-write"
+approval_policy = "untrusted"
+
+[profiles.mopp4]
+sandbox_mode = "read-only"
+approval_policy = "untrusted"
+
+# --- MOPP MCP server ----------------------------------------------------------
+# Exposes mopp_status / mopp_assess / mopp_set / mopp_gate as tools.
+# Replace the path with the absolute path to this repo's mcp/server.js.
+# Requires `npm install` in mcp/ first.
+
+[mcp_servers.mopp]
+command = "node"
+args = ["/ABSOLUTE/PATH/TO/mopp/mcp/server.js"]
+# env = { MOPP_CWD = "/path/to/your/project" }  # optional: pin the working tree

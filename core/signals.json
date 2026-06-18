@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "_comment": "Single source of truth for threat signals, level thresholds, and command gates. Consumed by core/bin/mopp. See doctrine.md.",
+  "levels": [0, 1, 2, 3, 4],
+  "signals": [
+    {
+      "id": "prod-target",
+      "axis": "dev",
+      "weight": 4,
+      "desc": "production environment referenced",
+      "detect": { "command": "(?i)\\b(prod|production)\\b", "env": ["PROD", "PRODUCTION"] }
+    },
+    {
+      "id": "deploy",
+      "axis": "dev",
+      "weight": 4,
+      "desc": "deploy / release / infra-apply command",
+      "detect": { "command": "(?i)\\b(deploy|release|kubectl\\s+apply|helm\\s+upgrade|terraform\\s+apply|vercel\\s+--prod|serverless\\s+deploy)\\b" }
+    },
+    {
+      "id": "migration",
+      "axis": "dev",
+      "weight": 3,
+      "desc": "database migration present",
+      "detect": { "files": ["**/migrations/**", "**/migrate/**", "**/*migration*"] }
+    },
+    {
+      "id": "destructive-cmd",
+      "axis": "dev",
+      "weight": 3,
+      "desc": "irreversible command",
+      "detect": { "command": "(?i)(rm\\s+-rf|git\\s+reset\\s+--hard|git\\s+push\\s+.*--force|drop\\s+table|truncate\\s+table)" }
+    },
+    {
+      "id": "large-blast",
+      "axis": "dev",
+      "weight": 2,
+      "desc": "many files changed",
+      "detect": { "changedFilesGte": 20 }
+    },
+    {
+      "id": "secrets-present",
+      "axis": "sec",
+      "weight": 4,
+      "desc": "secret material in tree",
+      "detect": { "files": [".env", ".env.*", "**/*.pem", "**/id_rsa*", "**/*credentials*", "**/*secret*"] }
+    },
+    {
+      "id": "auth-crypto-code",
+      "axis": "sec",
+      "weight": 3,
+      "desc": "auth / crypto code in scope",
+      "detect": { "files": ["**/auth/**", "**/*crypto*", "**/*jwt*", "**/*password*", "**/*oauth*"] }
+    },
+    {
+      "id": "network-egress",
+      "axis": "sec",
+      "weight": 3,
+      "desc": "outbound network in command",
+      "detect": { "command": "(?i)\\b(curl|wget|nc\\s|scp\\s|rsync\\s+.*::)" }
+    },
+    {
+      "id": "dep-change",
+      "axis": "sec",
+      "weight": 2,
+      "desc": "dependency manifest changed",
+      "detect": { "files": ["package.json", "requirements.txt", "go.mod", "Cargo.toml", "pom.xml", "Gemfile"] }
+    },
+    {
+      "id": "data-pii",
+      "axis": "sec",
+      "weight": 2,
+      "desc": "data / PII files in scope",
+      "detect": { "files": ["**/*.csv", "**/*.sql", "**/seed*", "**/fixtures/**"] }
+    }
+  ],
+  "thresholds": [
+    { "level": 4, "minScore": 8 },
+    { "level": 3, "minScore": 5 },
+    { "level": 2, "minScore": 3 },
+    { "level": 1, "minScore": 1 },
+    { "level": 0, "minScore": 0 }
+  ],
+  "gates": [
+    {
+      "level": 3,
+      "action": "confirm",
+      "match": "(?i)(rm\\s+-rf|git\\s+reset\\s+--hard|drop\\s+table|truncate\\s+table|delete\\s+from)",
+      "msg": "destructive op at MOPP 3 — human approval required"
+    },
+    {
+      "level": 3,
+      "action": "block",
+      "match": "(?i)git\\s+push\\s+(?!.*--force-with-lease).*--force",
+      "msg": "force-push blocked at MOPP 3+ — use --force-with-lease"
+    },
+    {
+      "level": 4,
+      "action": "block",
+      "match": "(?i)\\b(deploy|terraform\\s+apply|kubectl\\s+apply|helm\\s+upgrade|vercel\\s+--prod)\\b",
+      "msg": "deploy blocked at MOPP 4 — de-escalate deliberately (mopp down) before applying"
+    },
+    {
+      "level": 4,
+      "action": "confirm",
+      "match": "(?i)(\\brm\\s|\\bmv\\s|git\\s+push|>\\s|>>\\s|chmod\\s|chown\\s)",
+      "msg": "MOPP 4 max containment — confirm any filesystem/remote mutation"
+    }
+  ]
+}

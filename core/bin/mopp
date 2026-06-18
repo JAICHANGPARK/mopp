@@ -1,0 +1,257 @@
+#!/usr/bin/env node
+/*
+ * mopp — Mission-Oriented Protective Posture CLI.
+ * Host-agnostic core shared by the Claude Code and Codex adapters and the MCP
+ * server. Zero dependencies. See ../doctrine.md and ../signals.json.
+ *
+ * Commands:
+ *   mopp status               print current posture
+ *   mopp assess [--command C] recommend a posture from repo + command signals
+ *   mopp set <0-4> [--reason R]  adopt a posture (commander dictates)
+ *   mopp down [--reason R]     de-escalate one level
+ *   mopp gate --command C      evaluate a command against current posture
+ *                              exit 0 allow, 1 confirm, 2 block
+ *   mopp explain <0-4>         print the control checklist for a level
+ *
+ * Flags: --json (machine output where supported)
+ */
+
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+const SIGNALS_PATH = path.join(__dirname, '..', 'signals.json');
+
+// ---- locate repo root + state ------------------------------------------------
+function repoRoot() {
+  if (process.env.MOPP_ROOT) return process.env.MOPP_ROOT;
+  try {
+    return execSync('git rev-parse --show-toplevel', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString().trim();
+  } catch (_) {
+    return process.cwd();
+  }
+}
+function stateFile() {
+  return path.join(repoRoot(), '.mopp', 'posture');
+}
+function readState() {
+  try {
+    return JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
+  } catch (_) {
+    return { level: 0, setBy: 'default', reason: 'no posture set', at: null, threat: null };
+  }
+}
+function writeState(s) {
+  const dir = path.dirname(stateFile());
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(stateFile(), JSON.stringify(s, null, 2) + '\n');
+}
+
+// ---- signals -----------------------------------------------------------------
+function loadSignals() {
+  return JSON.parse(fs.readFileSync(SIGNALS_PATH, 'utf8'));
+}
+
+// JS RegExp has no inline (?i) flag; translate a leading (?i) to the 'i' flag.
+function reFrom(pat) {
+  let flags = '';
+  if (pat.startsWith('(?i)')) { flags = 'i'; pat = pat.slice(4); }
+  return new RegExp(pat, flags);
+}
+
+function trackedFiles() {
+  try {
+    return execSync('git ls-files', { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024 })
+      .toString().split('\n').filter(Boolean);
+  } catch (_) {
+    // shallow, bounded walk fallback
+    const out = [];
+    const root = repoRoot();
+    const skip = new Set(['.git', 'node_modules', '.gstack', 'dist', 'build', '.next']);
+    (function walk(dir, depth) {
+      if (depth > 4 || out.length > 5000) return;
+      let entries = [];
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (_) { return; }
+      for (const e of entries) {
+        if (skip.has(e.name)) continue;
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) walk(full, depth + 1);
+        else out.push(path.relative(root, full));
+      }
+    })(root, 0);
+    return out;
+  }
+}
+
+function changedFileCount() {
+  try {
+    const n = execSync('git status --porcelain', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString().split('\n').filter(Boolean).length;
+    return n;
+  } catch (_) { return 0; }
+}
+
+// minimal glob -> RegExp (supports **, *, ?, and literal segments)
+function globToRe(glob) {
+  let re = '';
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === '*') {
+      if (glob[i + 1] === '*') { re += '.*'; i++; if (glob[i + 1] === '/') i++; }
+      else re += '[^/]*';
+    } else if (c === '?') re += '[^/]';
+    else if ('.+^${}()|[]\\'.includes(c)) re += '\\' + c;
+    else re += c;
+  }
+  return new RegExp('^' + re + '$', 'i');
+}
+
+function matchesAnyGlob(files, globs) {
+  const res = globs.map(globToRe);
+  return files.some((f) => res.some((r) => r.test(f) || r.test(path.basename(f))));
+}
+
+// ---- assessment --------------------------------------------------------------
+function assess(command) {
+  const sig = loadSignals();
+  const files = trackedFiles();
+  const changed = changedFileCount();
+  const scores = { dev: 0, sec: 0 };
+  const matched = [];
+
+  for (const s of sig.signals) {
+    const d = s.detect || {};
+    let hit = false;
+    if (d.command && command && reFrom(d.command).test(command)) hit = true;
+    if (!hit && d.env && d.env.some((k) => process.env[k])) hit = true;
+    if (!hit && d.files && matchesAnyGlob(files, d.files)) hit = true;
+    if (!hit && typeof d.changedFilesGte === 'number' && changed >= d.changedFilesGte) hit = true;
+    if (hit) { scores[s.axis] += s.weight; matched.push({ id: s.id, axis: s.axis, weight: s.weight, desc: s.desc }); }
+  }
+
+  const levelFor = (score) => {
+    for (const t of sig.thresholds) if (score >= t.minScore) return t.level;
+    return 0;
+  };
+  const devLevel = levelFor(scores.dev);
+  const secLevel = levelFor(scores.sec);
+  const recommend = Math.max(devLevel, secLevel);
+  const driver = devLevel >= secLevel ? 'dev' : 'sec';
+
+  return { scores, devLevel, secLevel, recommend, driver, matched, changed };
+}
+
+// ---- gate --------------------------------------------------------------------
+function gate(command) {
+  const sig = loadSignals();
+  const level = readState().level;
+  const order = { allow: 0, confirm: 1, block: 2 };
+  let verdict = { action: 'allow', msg: 'allowed at MOPP ' + level };
+  for (const g of sig.gates) {
+    if (g.level <= level && reFrom(g.match).test(command)) {
+      if (order[g.action] > order[verdict.action]) verdict = { action: g.action, msg: g.msg, rule: g.match };
+    }
+  }
+  return { level, command, verdict };
+}
+
+// ---- explain -----------------------------------------------------------------
+const LEVEL_CONTROLS = {
+  0: ['full agent autonomy', 'work on a branch (universal floor)'],
+  1: ['+ tests must pass before done', '+ branch isolation', '+ baseline secret scan'],
+  2: ['+ lint + typecheck gate', '+ review before merge', '+ dependency audit, SAST'],
+  3: ['+ human approval on destructive ops', '+ force-push blocked', '+ network egress confirm', '+ audit log ON'],
+  4: ['+ worktree isolation', '+ dry-run before apply', '+ step-by-step confirm', '+ least privilege, secrets out of context', '+ written rollback plan'],
+};
+
+// ---- output helpers ----------------------------------------------------------
+const BAR = (n) => '▮'.repeat(n) + '▯'.repeat(4 - n);
+function out(obj, json) {
+  if (json) { process.stdout.write(JSON.stringify(obj) + '\n'); return; }
+}
+
+// ---- arg parsing -------------------------------------------------------------
+function parseArgs(argv) {
+  const a = { _: [] };
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--json') a.json = true;
+    else if (argv[i] === '--command') a.command = argv[++i];
+    else if (argv[i] === '--reason') a.reason = argv[++i];
+    else a._.push(argv[i]);
+  }
+  return a;
+}
+
+// ---- main --------------------------------------------------------------------
+function main() {
+  const [cmd, ...rest] = process.argv.slice(2);
+  const a = parseArgs(rest);
+
+  switch (cmd) {
+    case 'status': {
+      const s = readState();
+      if (a.json) return out(s, true);
+      console.log(`MOPP ${s.level} ${BAR(s.level)}  (set by ${s.setBy})`);
+      console.log(`  reason: ${s.reason}`);
+      if (s.threat) console.log(`  threat: dev=${s.threat.dev} sec=${s.threat.sec}`);
+      console.log(`  controls: ${LEVEL_CONTROLS[s.level].join('; ')}`);
+      return;
+    }
+    case 'assess': {
+      const r = assess(a.command);
+      if (a.json) return out(r, true);
+      console.log(`Recommended: MOPP ${r.recommend} ${BAR(r.recommend)}  (driver: ${r.driver})`);
+      console.log(`  dev score ${r.scores.dev} -> level ${r.devLevel} | sec score ${r.scores.sec} -> level ${r.secLevel}`);
+      if (r.matched.length) {
+        console.log('  signals:');
+        for (const m of r.matched) console.log(`    [${m.axis}+${m.weight}] ${m.id}: ${m.desc}`);
+      } else console.log('  signals: none matched');
+      console.log(`  adopt with: mopp set ${r.recommend}`);
+      return;
+    }
+    case 'set': {
+      const lvl = parseInt(a._[0], 10);
+      if (!(lvl >= 0 && lvl <= 4)) { console.error('usage: mopp set <0-4> [--reason R]'); process.exit(2); }
+      const r = assess(a.command);
+      const s = { level: lvl, setBy: process.env.USER || 'operator', reason: a.reason || 'set manually', at: new Date().toISOString(), threat: { dev: r.devLevel, sec: r.secLevel } };
+      writeState(s);
+      if (a.json) return out(s, true);
+      console.log(`Posture set: MOPP ${lvl} ${BAR(lvl)}`);
+      console.log(`  controls: ${LEVEL_CONTROLS[lvl].join('; ')}`);
+      return;
+    }
+    case 'down': {
+      const s = readState();
+      const next = Math.max(0, s.level - 1);
+      const ns = { level: next, setBy: process.env.USER || 'operator', reason: a.reason || `de-escalated from ${s.level}`, at: new Date().toISOString(), threat: s.threat };
+      writeState(ns);
+      if (a.json) return out(ns, true);
+      console.log(`De-escalated: MOPP ${s.level} -> ${next} ${BAR(next)}`);
+      return;
+    }
+    case 'gate': {
+      if (!a.command) { console.error('usage: mopp gate --command "<cmd>"'); process.exit(2); }
+      const r = gate(a.command);
+      if (a.json) out(r, true);
+      else console.log(`[MOPP ${r.level}] ${r.verdict.action.toUpperCase()}: ${r.verdict.msg}`);
+      process.exit(r.verdict.action === 'block' ? 2 : r.verdict.action === 'confirm' ? 1 : 0);
+      return;
+    }
+    case 'explain': {
+      const lvl = parseInt(a._[0], 10);
+      if (!(lvl >= 0 && lvl <= 4)) { console.error('usage: mopp explain <0-4>'); process.exit(2); }
+      console.log(`MOPP ${lvl} ${BAR(lvl)} controls (cumulative):`);
+      for (let i = 0; i <= lvl; i++) for (const c of LEVEL_CONTROLS[i]) console.log(`  ${c}`);
+      return;
+    }
+    default:
+      console.log('mopp — Mission-Oriented Protective Posture');
+      console.log('commands: status | assess [--command C] | set <0-4> [--reason R] | down | gate --command C | explain <0-4>');
+      console.log('flags: --json');
+      process.exit(cmd ? 2 : 0);
+  }
+}
+
+main();
