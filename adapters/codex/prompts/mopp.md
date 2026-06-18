@@ -1,14 +1,15 @@
 Check and manage the MOPP protective posture for this repo.
 
 Steps:
-1. Report current posture: run `node core/bin/mopp status`.
-2. Re-assess the threat: run `node core/bin/mopp assess` (add `--command "<cmd>"`
-   if a specific risky command is planned).
-3. If the recommended level is higher than the current one, explain why (cite the
-   driving signals) and ask me whether to adopt it with
-   `node core/bin/mopp set <level>`.
-4. Remind me of the active controls: `node core/bin/mopp explain <level>`.
-5. If we are above MOPP 0, also confirm I am running Codex under the matching
-   profile (`codex --profile mopp<level>`).
+1. Run **both** status and threat assessment in one turn:
+   * `node core/bin/mopp status --json`
+   * `node core/bin/mopp assess --json` (append `--command "<cmd>"` if a risky command is planned)
+2. Present a unified, clean report to the commander:
+   * Current posture level and active controls.
+   * Any detected threat signals in the workspace (modified files, package changes, etc.).
+   * The recommended posture level.
+3. If the recommended level is different from the current one, explain the driving signals and ask me whether to transition to it using `node core/bin/mopp set <level> --reason "<why>"`.
+4. If we are above MOPP 0, remind me to align my host profile if necessary (e.g., running `codex --profile mopp<level>`).
 
-Do not change posture without my confirmation — I am the commander; you advise.
+Do not change posture without my explicit confirmation — I am the commander; you advise.
+
