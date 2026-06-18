@@ -90,6 +90,8 @@ node core/bin/mopp down
 | `mopp assess [--command C]` | 저장소 + 명령 신호로 태세 추천 (변경 안 함) |
 | `mopp set <0-4> [--reason R]` | 태세 채택 (사람이 결정) |
 | `mopp down [--reason R]` | 한 단계 하향 |
+| `mopp gas` | α(알파) 긴급 격납 — 즉시 MOPP 4 ("가스 가스 가스") |
+| `mopp all-clear` | 경보 해제 — 재평가 후 적정 단계로 하향 |
 | `mopp gate --command C` | 명령 평가. exit 0 허용 / 1 확인 / 2 차단 |
 | `mopp explain <0-4>` | 해당 단계의 누적 통제 체크리스트 출력 |
 

@@ -222,6 +222,31 @@ function main() {
       console.log(`  controls: ${LEVEL_CONTROLS[lvl].join('; ')}`);
       return;
     }
+    case 'gas':
+    case 'alpha':
+    case 'lockdown': {
+      // α (알파) stage — reactive emergency jump to maximum containment.
+      const r = assess(a.command);
+      const s = { level: 4, setBy: process.env.USER || 'operator', reason: a.reason || 'GAS GAS GAS — alpha emergency lockdown', at: new Date().toISOString(), threat: { dev: r.devLevel, sec: r.secLevel } };
+      writeState(s);
+      if (a.json) return out(s, true);
+      console.log('🟡 GAS! GAS! GAS! — masking up.');
+      console.log(`Emergency lockdown: MOPP 4 ${BAR(4)} (alpha stage)`);
+      console.log(`  controls: ${LEVEL_CONTROLS[4].join('; ')}`);
+      console.log('  stand down with: mopp all-clear');
+      return;
+    }
+    case 'all-clear':
+    case 'allclear': {
+      // Stand down from an alarm: drop to the freshly-assessed recommended level.
+      const r = assess(a.command);
+      const s = { level: r.recommend, setBy: process.env.USER || 'operator', reason: a.reason || 'all clear — stood down to assessed level', at: new Date().toISOString(), threat: { dev: r.devLevel, sec: r.secLevel } };
+      writeState(s);
+      if (a.json) return out(s, true);
+      console.log(`🟢 All clear. Stood down to MOPP ${r.recommend} ${BAR(r.recommend)} (assessed, driver: ${r.driver}).`);
+      console.log(`  controls: ${LEVEL_CONTROLS[r.recommend].join('; ')}`);
+      return;
+    }
     case 'down': {
       const s = readState();
       const next = Math.max(0, s.level - 1);
@@ -248,7 +273,7 @@ function main() {
     }
     default:
       console.log('mopp — Mission-Oriented Protective Posture');
-      console.log('commands: status | assess [--command C] | set <0-4> [--reason R] | down | gate --command C | explain <0-4>');
+      console.log('commands: status | assess [--command C] | set <0-4> [--reason R] | down | gas | all-clear | gate --command C | explain <0-4>');
       console.log('flags: --json');
       process.exit(cmd ? 2 : 0);
   }

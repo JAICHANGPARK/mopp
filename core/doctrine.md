@@ -67,7 +67,9 @@ out, noted here so the metaphor stays honest:
   containment, not a step on the graded ladder. Our analogue is an **emergency
   lockdown** — reactively invoking MOPP 4 controls (freeze edits, worktree,
   human-only) in response to an incident, rather than reaching them by graded
-  assessment. (Not yet a separate command; reach it with `mopp set 4`.)
+  assessment. Invoke it reactively with **`mopp gas`** ("gas gas gas" — mask up);
+  stand down with **`mopp all-clear`**, which re-assesses and drops to the
+  warranted level.
 
 These omissions do not change the 0–4 → guardrail mapping; they document where
 the working dial sits within the fuller military framework.

@@ -84,6 +84,11 @@ node core/bin/mopp set 4 --reason "prod infra change"
 node core/bin/mopp gate --command "git push --force"
 # stand down when the risky work is done
 node core/bin/mopp down
+
+# emergency ("gas gas gas"): reactive jump straight to max containment (alpha)
+node core/bin/mopp gas
+# sound the all-clear: re-assess and drop to the warranted level
+node core/bin/mopp all-clear
 ```
 
 ## Install — Claude Code
