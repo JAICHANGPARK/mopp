@@ -42,6 +42,9 @@ const TOOLS = [
   { name: 'mopp_assess', description: 'Recommend a MOPP posture from repo + (optional) command threat signals. Does not change posture.', inputSchema: { type: 'object', properties: { command: { type: 'string', description: 'a proposed shell command to factor into the assessment' } } } },
   { name: 'mopp_set', description: 'Adopt a MOPP posture (0-4). The human/operator decides; agents should call mopp_assess first and confirm before setting.', inputSchema: { type: 'object', properties: { level: { type: 'integer', minimum: 0, maximum: 4 }, reason: { type: 'string' } }, required: ['level'] } },
   { name: 'mopp_gate', description: 'Evaluate a shell command against the current posture. Returns allow | confirm | block. Call this before running risky commands.', inputSchema: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] } },
+  { name: 'mopp_down', description: 'De-escalate the protective posture by one level (down to a minimum of 0). Call this once risky work is complete.', inputSchema: { type: 'object', properties: { reason: { type: 'string' } } } },
+  { name: 'mopp_gas', description: 'Trigger α (alpha) stage emergency lockdown. Reactively jumps to MOPP 4 immediately.', inputSchema: { type: 'object', properties: { reason: { type: 'string' } } } },
+  { name: 'mopp_all_clear', description: 'Clear emergency lockdown and stand down to the freshly-assessed recommended level.', inputSchema: { type: 'object', properties: {} } },
 ];
 
 const server = new Server({ name: 'mopp', version: '0.1.0' }, { capabilities: { tools: {} } });
@@ -56,6 +59,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     case 'mopp_assess': res = run(['assess', ...(args.command ? ['--command', args.command] : [])]); break;
     case 'mopp_set': res = run(['set', String(args.level), ...(args.reason ? ['--reason', args.reason] : [])]); break;
     case 'mopp_gate': res = run(['gate', '--command', args.command || '']); break;
+    case 'mopp_down': res = run(['down', ...(args.reason ? ['--reason', args.reason] : [])]); break;
+    case 'mopp_gas': res = run(['gas', ...(args.reason ? ['--reason', args.reason] : [])]); break;
+    case 'mopp_all_clear': res = run(['all-clear']); break;
     default: return { content: [{ type: 'text', text: `unknown tool: ${name}` }], isError: true };
   }
   return {

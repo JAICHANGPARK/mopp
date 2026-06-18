@@ -172,5 +172,4 @@ Integrate MOPP gates into autonomous Python agents to validate shell commands dy
 
 ## Status
 
-v0.1 — core CLI + gates tested; adapters scaffolded. MCP server needs
-`npm install` in `mcp/`. Tune `core/signals.json` to your stack.
+v0.1.1 — core CLI + gates tested; adapters scaffolded. MCP server (needs `npm install` in `mcp/`) exposes `mopp_status`, `mopp_assess`, `mopp_set`, `mopp_gate`, `mopp_down`, `mopp_gas`, and `mopp_all_clear`. Tune `core/signals.json` to your stack.

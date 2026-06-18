@@ -188,5 +188,5 @@ Python SDK로 구현된 자율 에이전트가 `run_command` (쉘 실행) 전에
 
 ## 상태 (Status)
 
-v0.1 — 코어 CLI + 게이트 검증 완료, 어댑터 스캐폴드 완료. MCP 서버는 `mcp/` 에서
-`npm install` 필요. `core/signals.json` 을 사용 스택에 맞게 튜닝할 것.
+v0.1.1 — 코어 CLI + 게이트 검증 완료, 어댑터 스캐폴드 완료. MCP 서버는 `mcp/` 에서
+`npm install` 필요. MCP 서버가 `mopp_status`, `mopp_assess`, `mopp_set`, `mopp_gate`, `mopp_down`, `mopp_gas`, `mopp_all_clear` 도구를 완비하고 있습니다. `core/signals.json` 을 사용 스택에 맞게 튜닝할 것.

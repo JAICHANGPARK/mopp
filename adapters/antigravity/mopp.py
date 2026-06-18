@@ -8,6 +8,8 @@ from typing import Optional, Dict, Any
 # Attempt to import Antigravity SDK types, fail-safe to mocks if not available
 try:
     from google.antigravity import types
+    from google.antigravity.hooks import hooks
+    HAS_SDK = True
 except ImportError:
     class MockTypes:
         class ToolCall:
@@ -19,6 +21,8 @@ except ImportError:
                 self.allow = allow
                 self.reason = reason
     types = MockTypes()
+    hooks = None
+    HAS_SDK = False
 
 def resolve_mopp_bin() -> str:
     """Resolves the path to the MOPP core CLI binary."""
@@ -66,7 +70,7 @@ def mopp_gate(command: str) -> Dict[str, Any]:
         }
     }
 
-async def mopp_pre_tool_hook(tool_call: Any) -> Any:
+async def mopp_pre_tool_hook_impl(tool_call: Any) -> Any:
     """Google Antigravity SDK pre_tool_call_decide Hook.
     
     Intercepts shell commands ('run_command') and checks them against the active MOPP posture.
@@ -97,3 +101,9 @@ async def mopp_pre_tool_hook(tool_call: Any) -> Any:
         )
         
     return types.HookResult(allow=True)
+
+# Register hook using decorator if SDK is available
+if HAS_SDK and hooks is not None:
+    mopp_pre_tool_hook = hooks.pre_tool_call_decide(mopp_pre_tool_hook_impl)
+else:
+    mopp_pre_tool_hook = mopp_pre_tool_hook_impl
