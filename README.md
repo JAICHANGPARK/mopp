@@ -2,6 +2,8 @@
 
 **Mission-Oriented Protective Posture for AI-assisted work.**
 
+English · [한국어](README.ko.md)
+
 Scale your AI guardrails to the threat of the task. Like military MOPP scales
 protective gear to a chemical threat, this scales tests, review gates, human
 approval, isolation, and audit to the blast radius and security sensitivity of
@@ -26,6 +28,34 @@ Cumulative — each level keeps all lower controls and adds a gear layer.
 
 The **mask (level 3)** is where a human enters the loop. Below it the agent runs
 on static gates; at 3+ a person approves the dangerous moves.
+
+## When to use it
+
+MOPP is for any session where the agent's actions carry uneven risk — most code
+work does. Pick a posture by what you are about to touch, then de-escalate when
+that work is done.
+
+| Situation | Posture |
+|---|---|
+| Prototype, spike, scratch branch, throwaway | **0** |
+| Day-to-day feature work on non-critical code | **1** |
+| Shared libraries / common modules, code headed for a PR/merge | **2** |
+| Destructive commands (`rm -rf`, `git reset --hard`, `DROP TABLE`), force-push, editing auth/crypto, outbound network calls | **3** |
+| Production targets, DB migrations, deploys, security-critical core, anything touching secrets | **4** |
+
+**When to invoke the tool, not just pick a number:**
+
+- **Session start** — let the SessionStart hook (Claude Code) or `/mopp status`
+  surface the current posture and any recommended bump.
+- **Before a risky command** — run `mopp assess --command "<cmd>"`, then `set`.
+  At MOPP 3+ the gate auto-evaluates every Bash command.
+- **When the work changes character** — moving from "writing a feature" to
+  "running the migration" is a posture change. Re-assess.
+- **When the risky work is done** — `mopp down`. Holding MOPP 4 through routine
+  edits just slows you down; that velocity cost is the whole reason the dial
+  goes both ways.
+
+Rule of thumb: **assess before, gate during, stand down after.**
 
 ## Layout
 
