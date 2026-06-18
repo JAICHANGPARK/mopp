@@ -1,4 +1,5 @@
 # mopp
+가스! 가스! 가스!
 
 **AI 협업 작업을 위한 임무형 보호태세 (Mission-Oriented Protective Posture).**
 
