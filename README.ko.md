@@ -122,6 +122,11 @@ node core/bin/mopp down
 - **Codex** 는 per-tool 차단 hook이 없다. 강제력 = 네이티브 샌드박스 + approval
   profile *과* AGENTS.md 지침에 따라 에이전트가 `mopp gate` 로 자가 점검하는 것.
 
+## 문서 (Documentation)
+
+- `core/doctrine.md` — 모델: 단계·장구·결정 권한·군사 정합성 노트
+- [`docs/SKILLS.ko.md`](docs/SKILLS.ko.md) — 스킬 명세서 (Claude Code 스킬 + Codex prompt)
+
 ## 상태 (Status)
 
 v0.1 — 코어 CLI + 게이트 검증 완료, 어댑터 스캐폴드 완료. MCP 서버는 `mcp/` 에서

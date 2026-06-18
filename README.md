@@ -110,6 +110,11 @@ your project's `AGENTS.md`, and drop `adapters/codex/prompts/mopp.md` into
 - **Codex** has no per-tool blocking hook; enforcement is its native sandbox +
   approval profile *plus* the agent self-gating with `mopp gate` per AGENTS.md.
 
+## Documentation
+
+- `core/doctrine.md` — the model: levels, gear, decision authority, military note
+- [`docs/SKILLS.md`](docs/SKILLS.md) — skill specification (Claude Code skills + Codex prompt)
+
 ## Status
 
 v0.1 — core CLI + gates tested; adapters scaffolded. MCP server needs
