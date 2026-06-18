@@ -4,6 +4,8 @@
 
 [한국어](README.md) · English
 
+![MOPP Level 4](docs/mopp_level4.jpg)
+
 Scale your AI guardrails to the threat of the task. Like military MOPP scales
 protective gear to a chemical threat, this scales tests, review gates, human
 approval, isolation, and audit to the blast radius and security sensitivity of
