@@ -91,29 +91,70 @@ node core/bin/mopp gas
 node core/bin/mopp all-clear
 ```
 
-## Install — Claude Code
+## Installation & Integration
 
-Point the plugin at `adapters/claude-code/` (it bundles the `/mopp` command,
-the `mopp-doctrine` and `mopp-assess` skills, and PreToolUse + SessionStart
-hooks). The hooks resolve the core binary via `$MOPP_BIN` or the monorepo
-`core/`. Optionally wire the statusline:
-
+### 1. Claude Code
+Point the plugin at `adapters/claude-code/` (it bundles the `/mopp` command, the `mopp-doctrine` and `mopp-assess` skills, and PreToolUse + SessionStart hooks).
+Optionally wire the statusline by adding this to your `settings.json`:
 ```json
-{ "statusLine": { "type": "command", "command": "node /abs/path/mopp/adapters/claude-code/statusline.js" } }
+{ 
+  "statusLine": { 
+    "type": "command", 
+    "command": "node /ABS/PATH/TO/mopp/adapters/claude-code/statusline.js" 
+  } 
+}
 ```
 
-## Install — Codex
+### 2. Codex
+1. Merge `adapters/codex/config.snippet.toml` into `~/.codex/config.toml` (defines per-level profiles + the `mopp` MCP server).
+2. Copy `adapters/codex/AGENTS.md` guidance into your project's `AGENTS.md`.
+3. Drop `adapters/codex/prompts/mopp.md` into `~/.codex/prompts/`.
+4. Run Codex under the matching profile: `codex --profile mopp3`.
 
-Merge `adapters/codex/config.snippet.toml` into `~/.codex/config.toml` (per-level
-profiles + the `mopp` MCP server), copy `adapters/codex/AGENTS.md` guidance into
-your project's `AGENTS.md`, and drop `adapters/codex/prompts/mopp.md` into
-`~/.codex/prompts/`. Run Codex under the matching profile: `codex --profile mopp3`.
+### 3. Google Antigravity (Agent Plugin & SDK)
 
-## Enforcement honesty
+#### A. Global Agent Plugin Registration
+To make MOPP skills (`mopp-assess`, `mopp-doctrine`) available across all workspaces and agent sessions, deploy it to the global plugin directory:
+1. Create and populate the global plugin directory under `~/.gemini/config/plugins/mopp`:
+   ```bash
+   # Create directories
+   mkdir -p ~/.gemini/config/plugins/mopp/skills/mopp-assess
+   mkdir -p ~/.gemini/config/plugins/mopp/skills/mopp-doctrine
+   mkdir -p ~/.gemini/config/plugins/mopp/core/bin
+   
+   # Copy files and grant executable permissions
+   cp core/bin/mopp ~/.gemini/config/plugins/mopp/core/bin/mopp
+   cp core/signals.json ~/.gemini/config/plugins/mopp/core/signals.json
+   cp core/doctrine.md ~/.gemini/config/plugins/mopp/core/doctrine.md
+   cp adapters/claude-code/.claude-plugin/plugin.json ~/.gemini/config/plugins/mopp/plugin.json
+   cp adapters/claude-code/skills/mopp-assess/SKILL.md ~/.gemini/config/plugins/mopp/skills/mopp-assess/SKILL.md
+   cp adapters/claude-code/skills/mopp-doctrine/SKILL.md ~/.gemini/config/plugins/mopp/skills/mopp-doctrine/SKILL.md
+   chmod +x ~/.gemini/config/plugins/mopp/core/bin/mopp
+   ```
+2. The agent will automatically recognize the `mopp-assess` and `mopp-doctrine` skills on reload.
 
-- **Claude Code** blocks/asks for real via the PreToolUse hook (deny / ask).
-- **Codex** has no per-tool blocking hook; enforcement is its native sandbox +
-  approval profile *plus* the agent self-gating with `mopp gate` per AGENTS.md.
+#### B. Google Antigravity Python SDK Integration
+Integrate MOPP gates into autonomous Python agents to validate shell commands dynamically during tool execution.
+1. Copy the [mopp.py](adapters/antigravity/mopp.py) adapter module into your agent project's codebase.
+2. Register the `mopp_pre_tool_hook` when initializing the `LocalAgentConfig` object:
+   ```python
+   from google.antigravity import Agent, LocalAgentConfig
+   from adapters.antigravity.mopp import mopp_pre_tool_hook
+
+   config = LocalAgentConfig(
+       system_instructions="You are an autonomous engineering agent.",
+       hooks=[mopp_pre_tool_hook]  # Automatically runs MOPP gates before shell commands
+   )
+   ```
+
+---
+
+## Enforcement Honesty
+
+- **Claude Code**: Intercepts commands pre-execution via the `PreToolUse` hook to physically deny (`deny`) or ask for approval (`ask`).
+- **Codex**: Has no per-tool hook; enforcement relies on native sandboxing (e.g. `read-only`) combined with the agent self-gating via `mopp gate` as specified in `AGENTS.md`.
+- **Antigravity SDK**: Intercepts tool calls via the `pre_tool_call_decide` lifecycle hook, canceling unsafe calls before they run.
+
 
 ## Documentation
 

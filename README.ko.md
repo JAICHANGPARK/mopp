@@ -101,28 +101,70 @@ node core/bin/mopp down
 임계값으로 단계에 매핑한다. 추천 태세 = 두 축 중 높은 쪽. 점수 → 단계는 **추천**이며,
 실제 채택은 `mopp set` 으로 사람이 한다.
 
-## 설치 — Claude Code
+## 설치 및 연동 (Installation)
 
-플러그인을 `adapters/claude-code/` 로 지정한다 (`/mopp` 명령, `mopp-doctrine`·
-`mopp-assess` 스킬, PreToolUse + SessionStart hook 포함). hook는 코어 바이너리를
-`$MOPP_BIN` 또는 모노레포 `core/` 에서 찾는다. statusline은 선택 연결:
-
+### 1. Claude Code
+플러그인 경로를 `adapters/claude-code/`로 지정하여 로드합니다 (`/mopp` 명령, `mopp-doctrine`·`mopp-assess` 스킬, PreToolUse + SessionStart hook 포함).
+상태 표시줄(statusline)을 연동하려면 `settings.json`에 다음 설정을 추가합니다.
 ```json
-{ "statusLine": { "type": "command", "command": "node /abs/path/mopp/adapters/claude-code/statusline.js" } }
+{ 
+  "statusLine": { 
+    "type": "command", 
+    "command": "node /절대경로/mopp/adapters/claude-code/statusline.js" 
+  } 
+}
 ```
 
-## 설치 — Codex
+### 2. Codex
+1. `adapters/codex/config.snippet.toml` 설정을 `~/.codex/config.toml`에 병합합니다 (단계별 profile 및 `mopp` MCP 서버 정보 등록).
+2. `adapters/codex/AGENTS.md` 가이드를 프로젝트의 `AGENTS.md` 파일에 추가합니다.
+3. `adapters/codex/prompts/mopp.md` 프롬프트를 `~/.codex/prompts/` 폴더에 복사합니다.
+4. 현재 MOPP 태세에 대응하는 프로필을 지정하여 Codex를 실행합니다: `codex --profile mopp3`.
 
-`adapters/codex/config.snippet.toml` 을 `~/.codex/config.toml` 에 병합하고
-(단계별 profile + `mopp` MCP 서버), `adapters/codex/AGENTS.md` 지침을 프로젝트
-`AGENTS.md` 에 넣고, `adapters/codex/prompts/mopp.md` 를 `~/.codex/prompts/` 에
-넣는다. 현재 태세에 맞는 profile로 실행: `codex --profile mopp3`.
+### 3. Google Antigravity (에이전트 플러그인 & SDK)
 
-## 강제력에 대한 솔직한 설명
+#### A. 에이전트 플러그인 등록 (Global Plugin)
+Antigravity 에이전트 환경의 모든 세션과 프로젝트에서 MOPP 스킬을 사용할 수 있도록 글로벌 플러그인으로 설치합니다.
+1. 전역 플러그인 경로(`~/.gemini/config/plugins/mopp`)에 플러그인 구조를 생성하고 배포합니다:
+   ```bash
+   # 디렉토리 생성
+   mkdir -p ~/.gemini/config/plugins/mopp/skills/mopp-assess
+   mkdir -p ~/.gemini/config/plugins/mopp/skills/mopp-doctrine
+   mkdir -p ~/.gemini/config/plugins/mopp/core/bin
+   
+   # 파일 복사 및 권한 부여
+   cp core/bin/mopp ~/.gemini/config/plugins/mopp/core/bin/mopp
+   cp core/signals.json ~/.gemini/config/plugins/mopp/core/signals.json
+   cp core/doctrine.md ~/.gemini/config/plugins/mopp/core/doctrine.md
+   cp adapters/claude-code/.claude-plugin/plugin.json ~/.gemini/config/plugins/mopp/plugin.json
+   cp adapters/claude-code/skills/mopp-assess/SKILL.md ~/.gemini/config/plugins/mopp/skills/mopp-assess/SKILL.md
+   cp adapters/claude-code/skills/mopp-doctrine/SKILL.md ~/.gemini/config/plugins/mopp/skills/mopp-doctrine/SKILL.md
+   chmod +x ~/.gemini/config/plugins/mopp/core/bin/mopp
+   ```
+2. 등록이 완료되면 에이전트가 리로드되면서 `mopp-assess`와 `mopp-doctrine` 스킬을 어느 작업 공간에서든 자동으로 인식합니다.
 
-- **Claude Code** 는 PreToolUse hook로 실제 차단/질의(deny / ask)를 한다.
-- **Codex** 는 per-tool 차단 hook이 없다. 강제력 = 네이티브 샌드박스 + approval
-  profile *과* AGENTS.md 지침에 따라 에이전트가 `mopp gate` 로 자가 점검하는 것.
+#### B. Google Antigravity Python SDK 연동
+Python SDK로 구현된 자율 에이전트가 `run_command` (쉘 실행) 전에 동적으로 MOPP 게이트를 확인하도록 훅 또는 정책(Policy)에 연동합니다.
+1. [mopp.py](adapters/antigravity/mopp.py) 어댑터 모듈을 에이전트 프로젝트 소스 경로로 가져옵니다.
+2. `LocalAgentConfig` 객체 초기화 시 `mopp_pre_tool_hook`을 등록합니다.
+   ```python
+   from google.antigravity import Agent, LocalAgentConfig
+   from adapters.antigravity.mopp import mopp_pre_tool_hook
+
+   config = LocalAgentConfig(
+       system_instructions="You are an autonomous engineering agent.",
+       hooks=[mopp_pre_tool_hook]  # MOPP 게이트 훅 자동 실행
+   )
+   ```
+
+---
+
+## 강제력 및 실행 방식 (Enforcement)
+
+- **Claude Code**: `PreToolUse` 훅이 명령 실행 전 개입하여 실제 차단(deny) 또는 사용자 질의(ask)를 물리적으로 제어합니다.
+- **Codex**: 전용 훅 시스템이 부재하므로, 네이티브 샌드박스 정책(`read-only` 등)과 `AGENTS.md` 지침에 따라 에이전트가 명령 전 `mopp gate`를 수동/자가 호출하여 행동을 자체 제어합니다.
+- **Antigravity SDK**: `pre_tool_call_decide` 생명주기 훅을 통해 쉘 명령 실행 전 차단 사유를 분석하고 툴 호출을 안전하게 취소시킵니다.
+
 
 ## 문서 (Documentation)
 
